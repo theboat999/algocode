@@ -20,9 +20,9 @@ public class NewUserButtonListener implements ActionListener {
     private JComboBox<String> yearComboBox;
     private JFrame accountCreationFrame; // Declare the variable here
 
-    static final String DB_URL = "jdbc:mysql://sql6.freesqldatabase.com:3306/sql6689518";
-    static final String USER = "sql6689518";
-    static final String PASS = "z1lwebFgAc";
+    static final String DB_URL = "jdbc:mysql://sql6.freesqldatabase.com:3306/sql6692695";
+    static final String USER = "sql6692695";
+    static final String PASS = "y4jarIZXey";
 
     public NewUserButtonListener(LoginPanel loginPanel, JFrame accountCreationFrame) {
         this.loginPanel = loginPanel;

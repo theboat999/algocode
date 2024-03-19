@@ -36,9 +36,9 @@ public class SubmitButtonListener implements ActionListener {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
 
-            final String DB_URL = "jdbc:mysql://sql6.freesqldatabase.com:3306/sql6689518";
-            final String USER = "sql6689518";
-            final String PASS = "z1lwebFgAc";
+            final String DB_URL = "jdbc:mysql://sql6.freesqldatabase.com:3306/sql6692695";
+            final String USER = "sql6692695";
+            final String PASS = "y4jarIZXey";
 
             try (Connection connection = DriverManager.getConnection(DB_URL, USER, PASS)) {
                 String query = "SELECT * FROM users WHERE BINARY username=? AND BINARY password=?";
