@@ -61,7 +61,7 @@ public class ElibraryMenu extends JFrame {
     searchBooksButton.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent e) {
-        String searchTerm = JOptionPane.showInputDialog("Enter your search term:");
+        String searchTerm = JOptionPane.showInputDialog("Search a book:");
         if (searchTerm != null && !searchTerm.isEmpty()) {
           performSearch(searchTerm);
         } else {
@@ -84,7 +84,7 @@ public class ElibraryMenu extends JFrame {
       @Override
       public void actionPerformed(ActionEvent e) {
         // Add your view borrowed books functionality here
-        System.out.println("View Borrowed Books");
+        viewBorrowedBooks();
       }
     });
 
@@ -93,7 +93,7 @@ public class ElibraryMenu extends JFrame {
       @Override
       public void actionPerformed(ActionEvent e) {
         // Add your return books functionality here
-        System.out.println("Return Books");
+        returnBooks();
       }
     });
 
@@ -480,4 +480,166 @@ public class ElibraryMenu extends JFrame {
     int borrowedBooksCount = getBorrowedBooksCount(connection);
     return borrowedBooksCount > 0;
   }
+
+  private void returnBooks() {
+    try {
+        // Establish database connection
+        Connection connection = DriverManager.getConnection("jdbc:mysql://sql6.freesqldatabase.com:3306/sql6692695", "sql6692695", "y4jarIZXey");
+
+        // Get the book to return using search functionality
+        String searchTerm = JOptionPane.showInputDialog("Enter the book title to return:");
+        if (searchTerm != null && !searchTerm.isEmpty()) {
+            // Perform search and return the book if found
+            performSearchAndReturn(searchTerm, connection);
+        } else {
+            JOptionPane.showMessageDialog(null, "Please enter a valid book title to return.", "Invalid Input", JOptionPane.ERROR_MESSAGE);
+        }
+
+        connection.close();
+    } catch (SQLException ex) {
+        ex.printStackTrace();
+        JOptionPane.showMessageDialog(null, "Failed to return the book. Please try again.", "Return Error", JOptionPane.ERROR_MESSAGE);
+    }
+}
+
+private void performSearchAndReturn(String searchTerm, Connection connection) {
+    try {
+        // Create a statement to search for the book
+        PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM BorrowedBooks WHERE Username = ? AND BookBorrowed LIKE ?");
+        preparedStatement.setString(1, loggedInUser.getUsername());
+        preparedStatement.setString(2, "%" + searchTerm + "%");
+        // Execute the query
+        ResultSet resultSet = preparedStatement.executeQuery();
+
+        // Process the search results and return the book if found
+        if (resultSet.next()) {
+            String bookTitle = resultSet.getString("BookBorrowed");
+
+            // Confirm return with user
+            int option = JOptionPane.showConfirmDialog(null, "Do you want to return the book: " + bookTitle + "?", "Confirm Return", JOptionPane.YES_NO_OPTION);
+            if (option == JOptionPane.YES_OPTION) {
+                // Remove borrowing record from database
+                removeBorrowingRecord(connection, bookTitle);
+                JOptionPane.showMessageDialog(null, "Book returned successfully.", "Return Success", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } else {
+            JOptionPane.showMessageDialog(null, "You have not borrowed this book.", "Return Error", JOptionPane.ERROR_MESSAGE);
+        }
+
+        preparedStatement.close();
+    } catch (SQLException ex) {
+        ex.printStackTrace();
+        JOptionPane.showMessageDialog(null, "Error performing search and return.", "Return Error", JOptionPane.ERROR_MESSAGE);
+    }
+}
+
+private void removeBorrowingRecord(Connection connection, String bookTitle) throws SQLException {
+    // Create a statement to delete the borrowing record
+    String deleteQuery = "DELETE FROM BorrowedBooks WHERE Username = ? AND BookBorrowed = ?";
+    try (PreparedStatement preparedStatement = connection.prepareStatement(deleteQuery)) {
+        preparedStatement.setString(1, loggedInUser.getUsername());
+        preparedStatement.setString(2, bookTitle);
+        preparedStatement.executeUpdate();
+    }
+}
+
+private void viewBorrowedBooks() {
+  try {
+      // Establish database connection
+      Connection connection = DriverManager.getConnection("jdbc:mysql://sql6.freesqldatabase.com:3306/sql6692695", "sql6692695", "y4jarIZXey");
+
+      // Create a statement to retrieve borrowed books
+      PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM BorrowedBooks WHERE Username = ?");
+      preparedStatement.setString(1, loggedInUser.getUsername());
+      ResultSet resultSet = preparedStatement.executeQuery();
+
+      // Process the result set and display the borrowed books with images
+      if (resultSet.next()) {
+          showBorrowedBooks(resultSet, connection);
+      } else {
+          JOptionPane.showMessageDialog(null, "You have not borrowed any books yet.", "Borrowed Books", JOptionPane.INFORMATION_MESSAGE);
+      }
+
+      preparedStatement.close();
+      connection.close();
+  } catch (SQLException ex) {
+      ex.printStackTrace();
+      JOptionPane.showMessageDialog(null, "Error fetching borrowed books.", "Error", JOptionPane.ERROR_MESSAGE);
+  }
+}
+
+private void showBorrowedBooks(ResultSet resultSet, Connection connection) throws SQLException {
+  // Create a JFrame to contain the borrowed books
+  JFrame borrowedBooksFrame = new JFrame("Borrowed Books");
+  JPanel borrowedBooksPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+  borrowedBooksPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+  // Fixed size for the images
+  int fixedWidth = 300;
+  int fixedHeight = 350;
+
+  // Add borrowed books details to the panel
+  do {
+      String bookTitle = resultSet.getString("BookBorrowed");
+      String dateBorrowed = resultSet.getString("DateBorrowed");
+      String returnDate = resultSet.getString("ReturnDate");
+
+      // Retrieve image data as a byte array from the books table
+      PreparedStatement imageStatement = connection.prepareStatement("SELECT * FROM books WHERE title = ?");
+      imageStatement.setString(1, bookTitle);
+      ResultSet imageResultSet = imageStatement.executeQuery();
+
+      if (imageResultSet.next()) {
+          byte[] imageData = imageResultSet.getBytes("image_path");
+
+          try {
+              // Convert the byte array to a BufferedImage
+              ByteArrayInputStream bis = new ByteArrayInputStream(imageData);
+              Image originalImage = ImageIO.read(bis);
+
+              // Close the input stream
+              bis.close();
+
+              // Create a BufferedImage with the fixed size
+              BufferedImage resizedImage = new BufferedImage(fixedWidth, fixedHeight, BufferedImage.TYPE_INT_ARGB);
+
+              // Create a Graphics2D object and draw the original image onto the resized image
+              Graphics2D g2d = resizedImage.createGraphics();
+              g2d.drawImage(originalImage, 0, 0, fixedWidth, fixedHeight, null);
+              g2d.dispose();
+
+              // Create a JButton to display the image and book details
+              JButton bookButton = new JButton(new ImageIcon(resizedImage));
+
+              // Add ActionListener to the bookButton
+              bookButton.addActionListener(new ActionListener() {
+                  @Override
+                  public void actionPerformed(ActionEvent e) {
+                      // Display book details when the button is clicked
+                      showBookDetails(bookTitle, "", "", ""); // Assuming no need to display details here
+                  }
+              });
+
+              // Add the JButton to the borrowedBooksPanel
+              borrowedBooksPanel.add(bookButton);
+          } catch (IOException e) {
+              e.printStackTrace();
+              JOptionPane.showMessageDialog(null, "Error loading image for book: " + bookTitle, "Image Error", JOptionPane.ERROR_MESSAGE);
+          }
+      }
+
+      imageStatement.close();
+  } while (resultSet.next());
+
+  // Create a JScrollPane to scroll through the borrowed books if there are many
+  JScrollPane scrollPane = new JScrollPane(borrowedBooksPanel);
+
+  // Add the scrollPane to the borrowedBooksFrame
+  borrowedBooksFrame.add(scrollPane);
+  borrowedBooksFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+  borrowedBooksFrame.pack();
+  borrowedBooksFrame.setLocationRelativeTo(null);
+  borrowedBooksFrame.setVisible(true);
+}
+
 }
